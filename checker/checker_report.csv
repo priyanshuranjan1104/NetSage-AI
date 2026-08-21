@@ -1,0 +1,31 @@
+case_id,category,check,flag
+V01,VLAN,none,No deterministic rule matched — relies on AI/human judgement
+V02,VLAN,none,No deterministic rule matched — relies on AI/human judgement
+V03,VLAN,none,No deterministic rule matched — relies on AI/human judgement
+V04,VLAN,missing_vlan,VLAN(s) referenced but not found in VLAN database: ['30']
+G01,Gateway,none,No deterministic rule matched — relies on AI/human judgement
+G02,Gateway,interface_down,Interface reported administratively down or down/down
+G03,Gateway,none,No deterministic rule matched — relies on AI/human judgement
+G04,Gateway,none,No deterministic rule matched — relies on AI/human judgement
+D01,DHCP,none,No deterministic rule matched — relies on AI/human judgement
+D02,DHCP,none,No deterministic rule matched — relies on AI/human judgement
+D03,DHCP,none,No deterministic rule matched — relies on AI/human judgement
+D04,DHCP,wrong_mask,"Non-standard subnet mask found (['255.255.255.240', '255.255.255.240']) — verify it matches the intended LAN size"
+N01,DNS,none,No deterministic rule matched — relies on AI/human judgement
+N02,DNS,none,No deterministic rule matched — relies on AI/human judgement
+N03,DNS,none,No deterministic rule matched — relies on AI/human judgement
+N04,DNS,none,No deterministic rule matched — relies on AI/human judgement
+R01,Routing,missing_route,show ip route has no entry for 10.20.0.0/24
+R02,Routing,none,No deterministic rule matched — relies on AI/human judgement
+R03,Routing,none,No deterministic rule matched — relies on AI/human judgement
+R04,Routing,none,No deterministic rule matched — relies on AI/human judgement
+A01,ACL,none,No deterministic rule matched — relies on AI/human judgement
+A02,ACL,none,No deterministic rule matched — relies on AI/human judgement
+A03,ACL,none,No deterministic rule matched — relies on AI/human judgement
+A04,ACL,none,No deterministic rule matched — relies on AI/human judgement
+T01,NAT,none,No deterministic rule matched — relies on AI/human judgement
+T02,NAT,none,No deterministic rule matched — relies on AI/human judgement
+T03,NAT,none,No deterministic rule matched — relies on AI/human judgement
+W01,Wireless,none,No deterministic rule matched — relies on AI/human judgement
+W02,Wireless,none,No deterministic rule matched — relies on AI/human judgement
+W03,Wireless,none,No deterministic rule matched — relies on AI/human judgement

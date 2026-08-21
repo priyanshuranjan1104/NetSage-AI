@@ -1,0 +1,137 @@
+case_id,category,severity,symptom,topology_note,show_output,expected_fault,osi_layer,concept_tag
+V01,VLAN,High,"PC-A (VLAN 10) cannot reach PC-B (VLAN 20) on the same switch, but both can ping their own gateway.","SW1 trunk Gi0/1 to SW2. Access ports: Fa0/1=VLAN10, Fa0/2=VLAN20. L3 switch does inter-VLAN routing.","SW1# show interfaces trunk
+Port  Mode  Encapsulation  Status  Native vlan
+Gi0/1 on    802.1q         trunking 1
+Vlans allowed on trunk: 1,10
+Vlans allowed and active in management domain: 1,10",Trunk not carrying VLAN 20 (switchport trunk allowed vlan missing 20),Layer 2,trunk-allowed-vlan
+V02,VLAN,Medium,"New PC plugged into Fa0/5 gets an IP from DHCP but cannot reach anything, including its own gateway.",Fa0/5 was previously used for a lab demo and never reset.,"SW1# show interfaces fa0/5 switchport
+Name: Fa0/5
+Administrative Mode: static access
+Operational Mode: static access
+Access Mode VLAN: 99 (VLAN0099)",Port assigned to wrong access VLAN (99 instead of intended 10),Layer 2,access-vlan-mismatch
+V03,VLAN,Low,"Intermittent connectivity between SW1 and SW2, console shows repeated CDP native VLAN mismatch warnings.",Trunk link Gi0/1 SW1 <-> Gi0/1 SW2.,"%CDP-4-NATIVE_VLAN_MISMATCH: Native VLAN mismatch discovered on GigabitEthernet0/1 (1), with SW2 GigabitEthernet0/1 (99).
+SW1# show interfaces trunk
+Port  Native vlan
+Gi0/1 1","Native VLAN mismatch across trunk (SW1=1, SW2=99)",Layer 2,native-vlan-mismatch
+V04,VLAN,High,All PCs newly added to VLAN 30 cannot get an IP address or reach anything.,VLAN 30 was planned for the new Finance department this week.,"SW1# show vlan brief
+VLAN Name        Status    Ports
+1    default      active    Gi0/1
+10   Sales        active    Fa0/1
+20   Marketing    active    Fa0/2
+(VLAN 30 not listed)",VLAN 30 was never created in the VLAN database,Layer 2,missing-vlan
+G01,Gateway,Medium,PC has a valid IP in 192.168.10.0/24 but cannot reach anything outside its subnet.,Router G0/0.10 = 192.168.10.1.,"PC> ipconfig
+IP Address: 192.168.10.55
+Subnet Mask: 255.255.255.0
+Default Gateway: 192.168.10.100",Wrong default gateway configured on the PC (192.168.10.100 instead of .1),Layer 3,wrong-default-gateway
+G02,Gateway,High,All VLAN 20 users lost connectivity to the router at the same time this morning.,Router-on-a-stick with sub-interfaces per VLAN.,"R1# show ip interface brief
+Interface           IP-Address      Status                Protocol
+GigabitEthernet0/0.10 192.168.10.1   up                    up
+GigabitEthernet0/0.20 192.168.20.1   administratively down down",VLAN 20 sub-interface administratively shut down,Layer 3,subinterface-down
+G03,Gateway,High,"Half the LAN loses internet whenever R1 (the primary HSRP router) is powered off for maintenance, even though R2 is supposed to take over.",R1 and R2 run HSRP group 1 for 192.168.1.1 virtual gateway.,"R2# show standby brief
+Interface  Grp  Pri  P State   Active         Standby        Virtual IP
+Gi0/1      1    90   Standby  R1(unreachable) local          192.168.1.1
+R1 priority was configured as 200, R2 as 90, preempt not enabled on R2","HSRP preempt not enabled on standby router, so it will not take over cleanly",Layer 3,hsrp-preempt
+G04,Gateway,High,Entire VLAN 40 (new lab) cannot reach the gateway at all; ARP requests for .1 get no reply.,L3 switch is supposed to route for VLAN 40 via SVI.,"L3SW# show ip interface brief
+Interface  IP-Address      Status  Protocol
+Vlan10     192.168.10.1    up      up
+Vlan40     unassigned      up      up",No IP address configured on the VLAN 40 SVI,Layer 3,missing-svi-ip
+D01,DHCP,High,All PCs on the remote VLAN 30 get a 169.254.x.x address instead of a DHCP-assigned one; DHCP server sits centrally on VLAN 1.,Router routes between VLANs; DHCP server is a separate host on VLAN 1.,"R1# show run interface g0/0.30
+interface GigabitEthernet0/0.30
+ encapsulation dot1Q 30
+ ip address 192.168.30.1 255.255.255.0
+(no ip helper-address line present)","Missing 'ip helper-address' on the router interface for VLAN 30, so DHCP broadcasts never reach the server",Layer 3,dhcp-relay-missing
+D02,DHCP,Medium,First 40 PCs in the lab got IP addresses fine this morning; PCs added after 9am get no address at all.,DHCP pool configured for a /27 network (30 usable hosts).,"R1# show ip dhcp pool LAN
+Pool LAN :
+ Leased addresses       30
+ Excluded addresses     2
+ High address           192.168.1.30
+ Low address            192.168.1.2",DHCP pool address range exhausted (30 leased against a 30-host pool),Layer 3,dhcp-pool-exhausted
+D03,DHCP,Medium,"Two devices on the network report the same IP address, one of them being the router's own gateway address.","DHCP pool for 192.168.5.0/24, gateway is 192.168.5.1.","R1# show run | section dhcp
+ip dhcp pool LAN
+ network 192.168.5.0 255.255.255.0
+ default-router 192.168.5.1
+(no ip dhcp excluded-address 192.168.5.1 line present)","Gateway address was never excluded from the DHCP pool, so it got leased to a client",Layer 3,dhcp-excluded-address-missing
+D04,DHCP,Medium,New PCs get an IP address from DHCP but cannot ping the gateway or anything else.,"LAN is 192.168.8.0/24 (/24 mask), gateway 192.168.8.1.","PC> ipconfig
+IP Address: 192.168.8.50
+Subnet Mask: 255.255.255.240
+Default Gateway: 192.168.8.1
+R1# show run | section dhcp
+ip dhcp pool LAN
+ network 192.168.8.0 255.255.255.240","DHCP pool configured with the wrong subnet mask (/28 instead of /24), placing gateway outside the client's calculated subnet",Layer 3,dhcp-wrong-mask
+N01,DNS,Medium,"PC can successfully ping the server's IP address directly, but 'ping fileserver.local' fails with 'could not find host'.",DHCP scope should hand out internal DNS server 192.168.1.53.,"PC> ipconfig /all
+DNS Servers: 8.8.8.8
+R1# show run | section dhcp
+ip dhcp pool LAN
+ dns-server 8.8.8.8",Wrong DNS server address handed out by DHCP (public resolver instead of internal DNS at .53),Layer 7,wrong-dns-server
+N02,DNS,High,Every PC in the building suddenly cannot resolve any internal hostname; direct IP access still works fine.,"Single internal DNS server, no redundancy configured.","PC> nslookup fileserver.local
+DNS request timed out.
+timeout was 2 seconds.
+*** Request to 192.168.1.53 timed-out
+DNS-SRV# show process (service not running / not reachable)",Internal DNS server service is down / unreachable,Layer 7,dns-server-down
+N03,DNS,Low,"PC can resolve 'fileserver.corp.local' when typed in full, but plain 'fileserver' fails.",Correct DNS server is configured on the client.,"PC> ipconfig /all
+DNS Servers: 192.168.1.53
+Connection-specific DNS Suffix: (none)","Missing DNS suffix on the client, so short (unqualified) names cannot be completed to an FQDN",Layer 7,missing-dns-suffix
+N04,DNS,Medium,Laptop resolves external websites fine but cannot resolve any internal server name.,Internal DNS is 192.168.1.53; the laptop was recently reconfigured with a static IP by mistake.,"PC> ipconfig /all
+DNS Servers: 1.1.1.1
+DHCP Enabled: No","Client statically configured to use an external/ISP DNS resolver instead of the internal DNS server, so internal-only records cannot resolve",Layer 7,external-dns-misconfig
+R01,Routing,High,"Branch office (10.20.0.0/24) can ping HQ servers, but HQ users cannot ping anything at the branch.","HQ router R1, Branch router R2, static routing used end to end.","R1# show ip route
+Gateway of last resort is not set
+     10.10.0.0/24 is directly connected, GigabitEthernet0/0
+(no route to 10.20.0.0/24 present)",Missing static route on HQ router (R1) back to the branch subnet 10.20.0.0/24,Layer 3,missing-static-route
+R02,Routing,Medium,OSPF neighbor between R1 and R2 never reaches FULL state; it hangs at EXSTART/EXCHANGE.,Both routers configured for OSPF area 0 on the link between them.,"R1# show ip ospf neighbor
+Neighbor ID   Pri  State           Address
+2.2.2.2       1    EXSTART/  -      10.0.0.2
+R1 interface MTU: 1500   R2 interface MTU: 1400","MTU mismatch between R1 and R2 on the shared link, preventing OSPF database exchange from completing",Layer 3,ospf-mtu-mismatch
+R03,Routing,Medium,Traffic to 172.16.30.0/24 is being sent out the wrong interface and never arrives.,"R1 has two WAN links: Se0/0/0 to ISP-A, Se0/0/1 to Branch.","R1# show run | include ip route
+ip route 172.16.30.0 255.255.255.0 Serial0/0/0
+(172.16.30.0 is actually reachable via Serial0/0/1, the branch link)",Static route configured with the wrong exit interface/next hop,Layer 3,wrong-static-route-nexthop
+R04,Routing,High,"R1 and R2 are directly connected and both run EIGRP, but neither shows the other as a neighbor and no dynamic routes appear.",Both routers were configured independently by different team members.,"R1# show ip protocols
+Routing Protocol is ""eigrp 100""
+R2# show ip protocols
+Routing Protocol is ""eigrp 200""","EIGRP autonomous system numbers do not match between R1 (100) and R2 (200), so no neighbor relationship forms",Layer 3,eigrp-as-mismatch
+A01,ACL,High,"Internal users cannot reach the web server on 192.168.100.10 over HTTP, even though the ACL is supposed to permit it.",Extended ACL 101 applied inbound on the server-facing interface.,"R1# show access-lists 101
+Extended IP access list 101
+ 10 deny tcp any any eq 80
+ 20 permit tcp any host 192.168.100.10 eq 80
+ 30 permit ip any any","A deny statement for port 80 is listed above the intended permit, blocking the traffic due to first-match ACL processing",Layer 4,acl-statement-order
+A02,ACL,Medium,PCs can send requests to the server but never receive any reply back.,ACL 105 meant to filter inbound traffic on Gi0/1 toward the LAN.,"R1# show ip interface gi0/1
+ Outgoing access list is 105
+ Inbound access list is not set","ACL applied in the outbound direction instead of inbound, blocking return traffic on the wrong pass",Layer 4,acl-wrong-direction
+A03,ACL,Medium,"After a routine ACL update, the entire 192.168.50.0/24 subnet lost access to every server, not just the one that was supposed to be restricted.",Requirement was to block only 192.168.50.0/24 from reaching the HR server (192.168.100.20).,"R1# show access-lists 10
+Standard IP access list 10
+ 10 deny 192.168.50.0 0.0.0.255
+ 20 permit any
+applied on interface toward HR server","A standard ACL (source-only filtering) was used where an extended ACL was required to match the specific destination, so all traffic from that subnet is blocked everywhere",Layer 3,standard-acl-misuse
+A04,ACL,Low,New Finance subnet (192.168.60.0/24) added last week cannot reach the file server; older subnets work fine through the same ACL.,ACL 110 was written before the Finance subnet existed.,"R1# show access-lists 110
+Extended IP access list 110
+ 10 permit ip 192.168.10.0 0.0.0.255 host 192.168.100.30
+ 20 permit ip 192.168.20.0 0.0.0.255 host 192.168.100.30
+ (implicit deny at end)","No explicit permit entry was added for the new Finance subnet, so it falls into the implicit deny at the end of the ACL",Layer 3,acl-implicit-deny
+T01,NAT,High,Internal PCs cannot reach the internet even though the ISP link is up and static routing looks correct.,PAT overload configured on R1 for internet access.,"R1# show ip nat translations
+(empty)
+R1# show run | include ip nat
+ip nat inside source list 1 interface Gi0/0 overload
+interface Gi0/1
+ ip nat outside
+(Gi0/0, the LAN-facing interface, is missing 'ip nat inside')","'ip nat inside' was never applied to the internal interface, so no traffic is being marked for translation",Layer 3,nat-inside-missing
+T02,NAT,High,External users report they cannot reach the company's public-facing web server at all.,Static NAT maps public 203.0.113.10 to the internal web server.,"R1# show run | include ip nat inside source static
+ip nat inside source static 192.168.1.99 203.0.113.10
+(actual web server IP is 192.168.1.100, not .99)",Static NAT entry points to the wrong internal IP address (192.168.1.99 instead of the server's real address 192.168.1.100),Layer 3,nat-static-wrong-ip
+T03,NAT,Medium,"Most of the office can browse the internet, but a handful of PCs on 192.168.1.192/27 cannot.",NAT uses ACL 1 to define which hosts get translated.,"R1# show access-lists 1
+Standard IP access list 1
+ 10 permit 192.168.1.0 0.0.0.63
+(this ACL only covers 192.168.1.0-63, missing the .192/27 range)","The ACL feeding the NAT overload statement is too narrow and does not include the 192.168.1.192/27 range, so those hosts never get translated",Layer 3,nat-acl-too-narrow
+W01,Wireless,High,"Devices on the Guest Wi-Fi SSID can reach the internal file server, which should be isolated from guest traffic.",Guest SSID maps to VLAN 90; internal server is on VLAN 10.,"WLC# show wlan 2
+WLAN Profile Name: Guest
+Interface/Interface Group: management
+(Guest WLAN is mapped to the 'management' interface instead of a dedicated guest VLAN interface, and no ACL is applied)",Guest WLAN is not mapped to an isolated VLAN/interface and has no client-isolation ACL applied,Layer 2/3,guest-isolation-missing
+W02,Wireless,Medium,Laptop repeatedly fails to authenticate to the office Wi-Fi despite the user re-typing the password carefully.,AP configured for WPA2-PSK.,"AP# show run | section wlan
+wlan OFFICE
+ security wpa wpa2
+ wpa-psk ascii 0 CorpWifi2024!
+(user's device is configured with passphrase 'CorpWiFi2024!' - case mismatch)",Pre-shared key mismatch between the AP configuration and the client (case-sensitive passphrase typed incorrectly on the device profile),Layer 2,wpa-psk-mismatch
+W03,Wireless,Low,"Users near the east wall report frequent Wi-Fi drops and very slow speeds, though signal bars look full.","Two APs (AP1, AP2) cover overlapping areas near the east wall.","AP1# show controllers dot11Radio 0 | include Channel
+Channel: 6
+AP2# show controllers dot11Radio 0 | include Channel
+Channel: 6
+(both APs on the same 2.4GHz channel, overlapping coverage)",Co-channel interference: AP1 and AP2 are set to the same 2.4GHz channel in overlapping coverage areas,Layer 1,channel-overlap
